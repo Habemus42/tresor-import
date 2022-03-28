@@ -25,8 +25,13 @@ const findFee = (textArr, startLine) => {
   //Every transaction/dividend statement has a maximum span of 45 lines
   for (let line = 0; line < 45; line++) {
     //Fee is below the line titled "Trasaktionskosten", otherwise zero.
-    if (textArr[startLine + line].startsWith('Transaktionskosten')) {
-      fee = parseGermanNum(textArr[startLine + line + 1]);
+    //textarr[startLine+line] may exceed document limit resulting in property error
+    try {
+      if (textArr[startLine + line].startsWith('Transaktionskosten')) {
+        fee = parseGermanNum(textArr[startLine + line + 1]);
+        break;
+      }
+    } catch (e) {
       break;
     }
   }
@@ -38,16 +43,20 @@ const findTax = (textArr, startLine) => {
     soli = 0,
     kist = 0;
   for (let line = 0; line < 45; line++) {
-    //Every transaction is searched for the three types of taxes
-    //The value is definied in the line below
-    if (textArr[startLine + line].endsWith('Kapitalertragsteuer')) {
-      kest = parseGermanNum(textArr[startLine + line + 1]);
-    }
-    if (textArr[startLine + line].endsWith('Solidaritätszuschlag')) {
-      soli = parseGermanNum(textArr[startLine + line + 1]);
-    }
-    if (textArr[startLine + line].endsWith('Kirchensteuer')) {
-      kist = parseGermanNum(textArr[startLine + line + 1]);
+    try {
+      //Every transaction is searched for the three types of taxes
+      //The value is definied in the line below
+      if (textArr[startLine + line].endsWith('Kapitalertragsteuer')) {
+        kest = parseGermanNum(textArr[startLine + line + 1]);
+      }
+      if (textArr[startLine + line].endsWith('Solidaritätszuschlag')) {
+        soli = parseGermanNum(textArr[startLine + line + 1]);
+      }
+      if (textArr[startLine + line].endsWith('Kirchensteuer')) {
+        kist = parseGermanNum(textArr[startLine + line + 1]);
+      }
+    } catch (e) {
+      break;
     }
   }
   return +Big(kest).plus(Big(soli)).plus(Big(kist));
@@ -70,6 +79,7 @@ const getDocumentType = content => {
   for (let lineNumber = 0; lineNumber < content.length; lineNumber++) {
     if (
       content[lineNumber].startsWith('Kauf') ||
+      content[lineNumber].startsWith('Splittkauf') ||
       content[lineNumber].startsWith('Verkauf') ||
       content[lineNumber] === 'Entgeltbelastung' ||
       //Wiederanlage is an automtatic reinvest of dividends (=buy order)
@@ -164,7 +174,7 @@ const parseData = (textArr, type, startLine, sellForFee) => {
       activity.shares = parseGermanNum(textArr[referenceLine - 4]);
       activity.amount = +Big(parseGermanNum(textArr[referenceLine + 3]));
       activity.price = +Big(activity.amount).div(activity.shares);
-      activity.tax = findFee(textArr, referenceLine);
+      activity.tax = findTax(textArr, referenceLine);
       activity.fee = 0;
       break;
     }
@@ -192,6 +202,7 @@ export const parsePages = contents => {
     for (let lineNumber = 0; lineNumber < allPagesFlat.length; lineNumber++) {
       if (
         allPagesFlat[lineNumber].startsWith('Kauf') ||
+        allPagesFlat[lineNumber].startsWith('Splittkauf') ||
         (allPagesFlat[lineNumber] === 'Wiederanlage' &&
           allPagesFlat[lineNumber + 1] !== 'zur Verfügung stehend')
       ) {
