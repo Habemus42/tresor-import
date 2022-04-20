@@ -23,17 +23,12 @@ const findDateBuySell = (textArr, startLine) => {
 const findFee = (textArr, startLine) => {
   let fee = 0;
   //Every transaction/dividend statement has a maximum span of 45 lines
-  for (let line = 0; line < 45; line++) {
+  for (let line = 0; line < 40 && (startLine+line)<textArr.length; line++) {
     //Fee is below the line titled "Trasaktionskosten", otherwise zero.
-    //textarr[startLine+line] may exceed document limit resulting in property error
-    try {
       if (textArr[startLine + line].startsWith('Transaktionskosten')) {
         fee = parseGermanNum(textArr[startLine + line + 1]);
         break;
       }
-    } catch (e) {
-      break;
-    }
   }
   return +Big(fee);
 };
@@ -42,8 +37,7 @@ const findTax = (textArr, startLine) => {
   let kest = 0,
     soli = 0,
     kist = 0;
-  for (let line = 0; line < 45; line++) {
-    try {
+  for (let line = 0; line < 40 && (startLine+line)<textArr.length; line++) {
       //Every transaction is searched for the three types of taxes
       //The value is definied in the line below
       if (textArr[startLine + line].endsWith('Kapitalertragsteuer')) {
@@ -55,9 +49,6 @@ const findTax = (textArr, startLine) => {
       if (textArr[startLine + line].endsWith('Kirchensteuer')) {
         kist = parseGermanNum(textArr[startLine + line + 1]);
       }
-    } catch (e) {
-      break;
-    }
   }
   return +Big(kest).plus(Big(soli)).plus(Big(kist));
 };
